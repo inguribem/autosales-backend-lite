@@ -1,66 +1,10 @@
-from fastapi import APIRouter, Query
-from typing import Optional
 from database import get_connection
-import requests
-import os
-
-router = APIRouter(prefix="/vehicles")
-
-SLACK_WEBHOOK_URL = os.getenv("SLACK_WEBHOOK_URL")
+from services.slack_notification_service import send_slack_notification
 
 # -------------------------
-# SEND SLACK NOTIFICATION
+# CREATE VEHICLE
 # -------------------------
-def send_slack_notification(vehicle):
-    if not SLACK_WEBHOOK_URL:
-        print("⚠️ Slack webhook not configured")
-        return
-
-    text = f"""
-🚗 New Vehicle Added
-VIN: {vehicle.get("vin")}
-{vehicle.get("year", "")} {vehicle.get("make", "")} {vehicle.get("model", "")}
-💰 Price: ${vehicle.get("price_purchase", 0)}
-📍 {vehicle.get("city", "")}, {vehicle.get("state", "")}
-Status: {vehicle.get("status", "new")}
-"""
-
-    payload = {
-        "text": text.strip()
-    }
-
-    try:
-        response = requests.post(
-            SLACK_WEBHOOK_URL,
-            json=payload,
-            timeout=5
-        )
-
-        print("Slack status:", response.status_code)
-        print("Slack response:", response.text)
-
-    except Exception as e:
-        print(f"❌ Slack error: {e}")
-
-# -------------------------
-# VIN Lookup via NHTSA
-# -------------------------
-@router.get("/vin/{vin}")
-def lookup_vin(vin: str):
-    url = f"https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVin/{vin}?format=json"
-    r = requests.get(url)
-    data = r.json()
-    resultados = {item['Variable']: item['Value'] for item in data['Results'] if item['Value']}
-    campos = ["Make","Model","Model Year","Vehicle Type","Engine Cylinders",
-              "Fuel Type - Primary","Transmission Style","Body Class"]
-    resumen = {c: resultados.get(c,"N/A") for c in campos}
-    return resumen
-
-# -------------------------
-# ADD VEHICLE
-# -------------------------
-@router.post("/")
-def add_vehicle(vehicle: dict):
+def create_vehicle(vehicle: dict):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -87,22 +31,15 @@ def add_vehicle(vehicle: dict):
     cursor.close()
     conn.close()
 
-    print("📡 Llamando a Slack...")
-
     send_slack_notification(vehicle)
 
     return {"status": "saved"}
 
+
 # -------------------------
-# VEHICLE INVENTORY WITH FILTERS
+# GET INVENTORY
 # -------------------------
-@router.get("/inventory")
-def get_inventory(
-    search: Optional[str] = Query(None),
-    make: Optional[str] = Query(None),
-    year: Optional[int] = Query(None),
-    status: Optional[str] = Query(None)
-):
+def get_inventory(search=None, make=None, year=None, status=None):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -143,10 +80,10 @@ def get_inventory(
 
     return [dict(zip(columns, row)) for row in rows]
 
+
 # -------------------------
 # UPDATE VEHICLE
 # -------------------------
-@router.put("/{vin}")
 def update_vehicle(vin: str, vehicle: dict):
     conn = get_connection()
     cursor = conn.cursor()
@@ -177,17 +114,18 @@ def update_vehicle(vin: str, vehicle: dict):
 
     return {"status": "updated"}
 
+
 # -------------------------
 # DELETE VEHICLE
 # -------------------------
-@router.delete("/{vin}")
 def delete_vehicle(vin: str):
     conn = get_connection()
     cursor = conn.cursor()
+
     cursor.execute("DELETE FROM vehicles WHERE vin=%s", (vin,))
+
     conn.commit()
     cursor.close()
     conn.close()
+
     return {"status": "deleted"}
-
-
