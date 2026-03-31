@@ -1,9 +1,23 @@
 from database import get_connection
 from services.slack_notification_service import send_slack_notification
+from services.cost_service import add_cost_entry
 
 # -------------------------
 # CREATE VEHICLE
 # -------------------------
+
+# Valores por defecto (puedes cambiarlos)
+DEFAULT_COSTS = {
+    "buyer_fee": 100,
+    "inside_fees": 0,
+    "floor_plan_fees": 0,
+    "detailing": 0,
+    "mechanic": 0,
+    "bodyshop": 0,
+    "grua": 0,
+    "parts": 0
+}
+
 def create_vehicle(vehicle: dict):
     conn = get_connection()
     cursor = conn.cursor()
@@ -32,6 +46,16 @@ def create_vehicle(vehicle: dict):
     conn.close()
 
     send_slack_notification(vehicle)
+
+    # -------------------------
+    # Crear costos por defecto
+    # -------------------------
+    for field_name, amount in DEFAULT_COSTS.items():
+        add_cost_entry(vin, {
+            "field_name": field_name,
+            "amount": amount,
+            "description": "Default"
+        })
 
     return {"status": "saved"}
 
