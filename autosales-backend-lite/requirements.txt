@@ -5,3 +5,5 @@ requests
 pydantic
 python-dotenv
 python-multipart
+passlib[bcrypt]
+python-jose
