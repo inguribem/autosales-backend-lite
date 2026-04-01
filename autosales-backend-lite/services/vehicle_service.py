@@ -12,13 +12,15 @@ DEFAULT_COSTS = {
     "inside_fees": 0,
     "floor_plan_fees": 0,
     "detailing": 0,
-    "mechanic": 0,
+    "mechanic": 50,
     "bodyshop": 0,
     "grua": 0,
     "parts": 0
 }
 
 def create_vehicle(vehicle: dict):
+    vin = vehicle["vin"]
+    
     conn = get_connection()
     cursor = conn.cursor()
 
