@@ -61,13 +61,20 @@ def create_access_token(data: dict):
 # Authenticate user
 # -------------------------
 def authenticate_user(email: str, password: str):
+    print("LOGIN ATTEMPT:", email)
     user = get_user_by_email(email)
 
     if not user:
+        print("USER NOT FOUND")
         return None
 
+    print("USER FOUND")
+
     if not verify_password(password, user["password_hash"]):
+        print("PASSWORD NOT MATCH")
         return None
+
+    print("AUTH SUCCESS")
 
     token = create_access_token({
         "sub": user["email"]
