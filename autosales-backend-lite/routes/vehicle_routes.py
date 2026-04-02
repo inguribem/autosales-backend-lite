@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException
 from database import get_connection
 from services.vin_service import decode_vin
-from services.cost_service import add_cost_entry, get_costs_for_vin
+from services.cost_service import add_cost_entry
 from services.vehicle_service import (
     create_vehicle,
     get_inventory,
