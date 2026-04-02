@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Query, HHTPException
+from fastapi import APIRouter, Query, HTTPException
 from services.vin_service import decode_vin
 from services.vehicle_service import get_vehicle_by_id
 from services.vehicle_service import (
