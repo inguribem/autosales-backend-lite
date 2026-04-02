@@ -190,3 +190,32 @@ def delete_vehicle(vin: str):
     conn.close()
 
     return {"status": "deleted"}
+
+
+def get_vehicle_by_id(vehicle_id: str):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT id, vin, year, make, model, price_purchase,
+               miles, trim, dealer_name, city, state, status
+        FROM vehicles
+        WHERE vin = %s
+        LIMIT 1
+    """, (vehicle_id,))
+
+    row = cursor.fetchone()
+
+    if not row:
+        cursor.close()
+        conn.close()
+        return None
+
+    columns = [desc[0] for desc in cursor.description]
+    vehicle = dict(zip(columns, row))
+
+    cursor.close()
+    conn.close()
+
+    # ✅ reutilizamos el normalizador
+    return normalize_vehicle(vehicle)

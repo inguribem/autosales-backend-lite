@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Query, HHTPException
+from services.vin_service import decode_vin
+from services.vehicle_service import get_vehicle_by_id
 from services.vehicle_service import (
     create_vehicle,
     get_inventory,
@@ -60,3 +62,26 @@ def delete(id: str):
 @router.get("/vehicles")
 def get_vehicles():
     return get_inventory()
+
+@router.get("/vehicles/decode/{vin}")
+def decode_vehicle_vin(vin: str):
+    try:
+        result = decode_vin(vin)
+
+        if not result:
+            raise HTTPException(status_code=404, detail="VIN not found")
+
+        return result
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    
+
+@router.get("/vehicles/{vehicle_id}")
+def get_vehicle(vehicle_id: str):
+    vehicle = get_vehicle_by_id(vehicle_id)
+
+    if not vehicle:
+        raise HTTPException(status_code=404, detail="Vehicle not found")
+
+    return vehicle
