@@ -100,8 +100,8 @@ def add_cost_entry(vin: str, entry: dict):
         VALUES (%s, %s, %s, %s)
     """, (
         vin,
-        entry["field_name"],
-        entry["amount"],
+        entry.field_name,
+        entry.amount,
         entry.get("description")
     ))
 
