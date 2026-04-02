@@ -56,3 +56,7 @@ def update(id: str, vehicle: dict):
 @router.delete("/{id}")
 def delete(id: str):
     return delete_vehicle(id)
+
+@router.get("/vehicles")
+def get_vehicles():
+    return get_inventory()

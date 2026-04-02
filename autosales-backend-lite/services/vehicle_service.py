@@ -2,6 +2,42 @@ from database import get_connection
 from services.slack_notification_service import send_slack_notification
 from services.cost_service import add_cost_entry
 
+# vehicle_service.py
+
+from database import get_connection
+
+# ✅ 1. HELPERS (AQUÍ VA EL NORMALIZADOR)
+def map_status(status: str):
+    if not status:
+        return "purchase"
+
+    status = status.lower()
+
+    if status in ["new", "purchase"]:
+        return "purchase"
+    if status in ["repair", "in_repair"]:
+        return "repair"
+    if status in ["done", "ready"]:
+        return "done"
+
+    return "purchase"
+
+
+def normalize_vehicle(row: dict):
+    return {
+        "id": row["vin"],
+        "vin": row["vin"],
+        "year": row["year"] or 0,
+        "make": row["make"] or "",
+        "model": row["model"] or "",
+        "trim": row["trim"] or "",
+        "purchasePrice": float(row["price_purchase"]) if row["price_purchase"] else None,
+        "mileage": row["miles"] or None,
+        "status": map_status(row["status"]),
+        "stockNumber": row["vin"][-6:] if row["vin"] else "",
+    }
+
+
 # -------------------------
 # CREATE VEHICLE
 # -------------------------
@@ -65,16 +101,8 @@ def get_inventory(search=None, make=None, year=None, status=None):
     cursor = conn.cursor()
 
     query = """
-        SELECT 
-            vin AS id,
-            vin,
-            year,
-            make,
-            model,
-            trim,
-            price_purchase,
-            miles,
-            status
+        SELECT id, vin, year, make, model, price_purchase,
+               miles, trim, dealer_name, city, state, status
         FROM vehicles
         WHERE 1=1
     """
@@ -101,30 +129,16 @@ def get_inventory(search=None, make=None, year=None, status=None):
 
     cursor.execute(query, params)
     rows = cursor.fetchall()
+
     columns = [desc[0] for desc in cursor.description]
 
     cursor.close()
     conn.close()
 
-    vehicles = []
-    for row in rows:
-        v = dict(zip(columns, row))
+    vehicles = [dict(zip(columns, row)) for row in rows]
 
-        # 🔥 MAP TO FRONTEND FORMAT
-        vehicles.append({
-            "id": v["id"],
-            "vin": v["vin"],
-            "year": v["year"],
-            "make": v["make"] or "",
-            "model": v["model"] or "",
-            "trim": v["trim"] or "",
-            "purchasePrice": v["price_purchase"],
-            "mileage": v["miles"],
-            "status": v["status"],
-            "stockNumber": v["vin"][-6:]  # opcional
-        })
-
-    return vehicles
+    # 🔥 NORMALIZACIÓN AQUÍ
+    return [normalize_vehicle(v) for v in vehicles]
 
 
 # -------------------------
