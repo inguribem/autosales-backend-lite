@@ -23,9 +23,11 @@ CostField = Literal[
 # INSERT (ledger)
 # -------------------------
 class CostEntryCreate(BaseModel):
-    field_name: CostField
-    amount: float = Field(..., gt=0)
-    description: Optional[str] = None
+    field_name: str
+    description: str
+    amount: float
+    vendor: Optional[str]
+    date: Optional[date]
 
 
 # -------------------------
