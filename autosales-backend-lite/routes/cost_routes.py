@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query
 from typing import List
 
 from schemas.cost_schema import (
@@ -9,7 +9,13 @@ from schemas.cost_schema import (
 
 from services import cost_service
 
-router = APIRouter(prefix="/costs")
+router = APIRouter(prefix="/costs", tags=["Costs"])
+
+
+# ✅ ESTE ES EL QUE USA TU FRONTEND
+@router.get("")
+def get_costs(vin: str = Query(...)):
+    return cost_service.get_cost_history(vin) or []
 
 
 # -------------------------
