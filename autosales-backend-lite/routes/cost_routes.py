@@ -17,6 +17,10 @@ router = APIRouter(prefix="/costs", tags=["Costs"])
 def get_costs(vin: str = Query(...)):
     return cost_service.get_cost_history(vin) or []
 
+@router.get("/types")
+def get_cost_types():
+    return cost_service.get_cost_types()
+
 
 # -------------------------
 # ADD COST (ledger)

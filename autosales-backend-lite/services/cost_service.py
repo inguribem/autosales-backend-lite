@@ -30,7 +30,7 @@ def get_cost_summary(vin: str):
 
     cursor.execute("""
         SELECT vehicle_vin, buyer_fee, inside_fees, floor_plan_fees,
-               detailing, mechanic, bodyshop, grua, parts
+               detailing, mechanic, bodyshop, grua, parts, others
         FROM cost_mgmt
         WHERE vehicle_vin = %s
     """, (vin,))
@@ -44,7 +44,7 @@ def get_cost_summary(vin: str):
 
     columns = [
         "vehicle_vin", "buyer_fee", "inside_fees", "floor_plan_fees",
-        "detailing", "mechanic", "bodyshop", "grua", "parts"
+        "detailing", "mechanic", "bodyshop", "grua", "parts", "others"
     ]
 
     return dict(zip(columns, row))
@@ -68,6 +68,24 @@ def get_cost_history(vin: str):
     conn.close()
 
     return [dict(zip(columns, row)) for row in rows]
+
+def get_cost_types():
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute("""
+        SELECT field_name
+        FROM cost_mgmt
+        ORDER BY field_name
+    """)
+
+    rows = cursor.fetchall()
+
+    cursor.close()
+    conn.close()
+
+    return [row[0] for row in rows]
+
 
 def add_cost_entry(vin: str, entry: dict):
     """

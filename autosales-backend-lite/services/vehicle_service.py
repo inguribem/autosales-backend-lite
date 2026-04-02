@@ -51,7 +51,8 @@ DEFAULT_COSTS = {
     "mechanic": 50,
     "bodyshop": 0,
     "grua": 0,
-    "parts": 0
+    "parts": 0,
+    "others": 0
 }
 
 def create_vehicle(vehicle: dict):

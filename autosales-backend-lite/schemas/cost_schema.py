@@ -14,7 +14,8 @@ CostField = Literal[
     "mechanic",
     "bodyshop",
     "grua",
-    "parts"
+    "parts", 
+    "others"
 ]
 
 
@@ -41,6 +42,7 @@ class CostResponse(BaseModel):
     bodyshop: float
     grua: float
     parts: float
+    others: float
 
 
 # -------------------------
