@@ -20,27 +20,24 @@ DEFAULT_COSTS = {
 
 def create_vehicle(vehicle: dict):
     vin = vehicle["vin"]
-    
+
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
         INSERT INTO vehicles
-        (vin, year, make, model, trim, price_purchase, miles, dealer_name, city, state, status)
-        VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)
+        (vin, year, make, model, trim, price_purchase, miles, status)
+        VALUES (%s,%s,%s,%s,%s,%s,%s,%s)
         ON CONFLICT (vin) DO NOTHING
     """, (
-        vehicle["vin"],
-        vehicle.get("year") or None,
-        vehicle.get("make") or None,
-        vehicle.get("model") or None,
-        vehicle.get("trim") or "",
-        vehicle.get("price_purchase") or None,
-        vehicle.get("miles") or None,
-        vehicle.get("dealer_name") or "",
-        vehicle.get("city") or "",
-        vehicle.get("state") or "",
-        vehicle.get("status") or "new"
+        vin,
+        vehicle.get("year"),
+        vehicle.get("make"),
+        vehicle.get("model"),
+        vehicle.get("trim"),
+        vehicle.get("purchasePrice"),  # 👈 FIX
+        vehicle.get("mileage"),        # 👈 FIX
+        vehicle.get("status", "purchase")
     ))
 
     conn.commit()
@@ -49,9 +46,7 @@ def create_vehicle(vehicle: dict):
 
     send_slack_notification(vehicle)
 
-    # -------------------------
-    # Crear costos por defecto
-    # -------------------------
+    # DEFAULT COSTS
     for field_name, amount in DEFAULT_COSTS.items():
         add_cost_entry(vin, {
             "field_name": field_name,
@@ -70,8 +65,16 @@ def get_inventory(search=None, make=None, year=None, status=None):
     cursor = conn.cursor()
 
     query = """
-        SELECT id, vin, year, make, model, price_purchase,
-               miles, trim, dealer_name, city, state, status
+        SELECT 
+            vin AS id,
+            vin,
+            year,
+            make,
+            model,
+            trim,
+            price_purchase,
+            miles,
+            status
         FROM vehicles
         WHERE 1=1
     """
@@ -98,13 +101,30 @@ def get_inventory(search=None, make=None, year=None, status=None):
 
     cursor.execute(query, params)
     rows = cursor.fetchall()
-
     columns = [desc[0] for desc in cursor.description]
 
     cursor.close()
     conn.close()
 
-    return [dict(zip(columns, row)) for row in rows]
+    vehicles = []
+    for row in rows:
+        v = dict(zip(columns, row))
+
+        # 🔥 MAP TO FRONTEND FORMAT
+        vehicles.append({
+            "id": v["id"],
+            "vin": v["vin"],
+            "year": v["year"],
+            "make": v["make"],
+            "model": v["model"],
+            "trim": v["trim"],
+            "purchasePrice": v["price_purchase"],
+            "mileage": v["miles"],
+            "status": v["status"],
+            "stockNumber": v["vin"][-6:]  # opcional
+        })
+
+    return vehicles
 
 
 # -------------------------
@@ -116,21 +136,22 @@ def update_vehicle(vin: str, vehicle: dict):
 
     cursor.execute("""
         UPDATE vehicles
-        SET year=%s, make=%s, model=%s, trim=%s,
-            price_purchase=%s, miles=%s,
-            dealer_name=%s, city=%s, state=%s, status=%s
+        SET year=%s,
+            make=%s,
+            model=%s,
+            trim=%s,
+            price_purchase=%s,
+            miles=%s,
+            status=%s
         WHERE vin=%s
     """, (
-        int(vehicle.get("year")) if vehicle.get("year") else None,
+        vehicle.get("year"),
         vehicle.get("make"),
         vehicle.get("model"),
-        vehicle.get("trim", ""),
-        vehicle.get("price_purchase"),
-        vehicle.get("miles"),
-        vehicle.get("dealer_name", ""),
-        vehicle.get("city", ""),
-        vehicle.get("state", ""),
-        vehicle.get("status", "new"),
+        vehicle.get("trim"),
+        vehicle.get("purchasePrice"),  # FIX
+        vehicle.get("mileage"),        # FIX
+        vehicle.get("status"),
         vin
     ))
 

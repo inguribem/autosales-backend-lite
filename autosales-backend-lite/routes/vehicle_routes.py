@@ -1,36 +1,58 @@
 from fastapi import APIRouter, Query
-from typing import Optional
-from services import vehicle_service, vin_service
+from services.vehicle_service import (
+    create_vehicle,
+    get_inventory,
+    update_vehicle,
+    delete_vehicle
+)
 
-router = APIRouter(prefix="/vehicles")
-
-@router.get("/vin/{vin}")
-def lookup_vin(vin: str):
-    return vin_service.decode_vin(vin)
-
-
-@router.post("/")
-def add_vehicle(vehicle: dict):
-    return vehicle_service.create_vehicle(vehicle)
+router = APIRouter(prefix="/vehicles", tags=["vehicles"])
 
 
-@router.get("/inventory")
-def get_inventory(
-    search: Optional[str] = Query(None),
-    make: Optional[str] = Query(None),
-    year: Optional[int] = Query(None),
-    status: Optional[str] = Query(None)
+# -------------------------
+# GET ALL VEHICLES
+# -------------------------
+@router.get("")
+def get_vehicles(
+    search: str = Query(None),
+    make: str = Query(None),
+    year: int = Query(None),
+    status: str = Query(None)
 ):
-    return vehicle_service.get_inventory(search, make, year, status)
+    return get_inventory(search, make, year, status)
 
 
-@router.put("/{vin}")
-def update_vehicle(vin: str, vehicle: dict):
-    return vehicle_service.update_vehicle(vin, vehicle)
+# -------------------------
+# GET SINGLE VEHICLE
+# -------------------------
+@router.get("/{id}")
+def get_vehicle(id: str):
+    vehicles = get_inventory()
+    for v in vehicles:
+        if v["id"] == id:
+            return v
+    return {"error": "Vehicle not found"}
 
 
-@router.delete("/{vin}")
-def delete_vehicle(vin: str):
-    return vehicle_service.delete_vehicle(vin)
+# -------------------------
+# CREATE VEHICLE
+# -------------------------
+@router.post("")
+def create(vehicle: dict):
+    return create_vehicle(vehicle)
 
 
+# -------------------------
+# UPDATE VEHICLE
+# -------------------------
+@router.patch("/{id}")
+def update(id: str, vehicle: dict):
+    return update_vehicle(id, vehicle)
+
+
+# -------------------------
+# DELETE VEHICLE
+# -------------------------
+@router.delete("/{id}")
+def delete(id: str):
+    return delete_vehicle(id)
