@@ -1,35 +1,16 @@
-from fastapi import APIRouter
-from database import get_connection
+from fastapi import APIRouter, Query
+from services import location_service
 
 router = APIRouter(prefix="/locations", tags=["Locations"])
 
 
-# -------------------------
-# GET LAST LOCATION BY VIN
-# -------------------------
-@router.get("/{vin}")
-def get_location(vin: str):
-    conn = get_connection()
-    cursor = conn.cursor()
+# 🔹 Current Location (movement_inventory)
+@router.get("")
+def get_location(vin: str = Query(...)):
+    return location_service.get_current_location(vin)
 
-    cursor.execute("""
-        SELECT address, updated_at
-        FROM vehicle_locations
-        WHERE vin = %s
-        ORDER BY updated_at DESC
-        LIMIT 1
-    """, (vin,))
 
-    row = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-    # ✅ IMPORTANTE: nunca retornar None
-    if not row:
-        return {}
-
-    return {
-        "address": row[0],
-        "updatedAt": row[1]
-    }
+# 🔹 Movement History
+@router.get("/history")
+def get_history(vin: str = Query(...)):
+    return location_service.get_movement_history(vin)
