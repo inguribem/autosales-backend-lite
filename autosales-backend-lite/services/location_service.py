@@ -21,8 +21,8 @@ def get_current_location(vin: str):
 
     return {
         "vin": row[1],
+        "current_location": row[9],
         "vin": row[1],
-        "status": row[8],
         "last_responsible_name": row[14],
         "last_responsible_phone": row[13],
         "updated_at": row[16],
