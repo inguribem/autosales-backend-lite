@@ -32,6 +32,7 @@ CREATE TABLE cost_mgmt (
     bodyshop NUMERIC(10,2) DEFAULT 0,
     grua NUMERIC(10,2) DEFAULT 0,
     parts NUMERIC(10,2) DEFAULT 0,
+    others NUMERIC(10,2) DEFAULT 0,
 
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -92,6 +93,9 @@ BEGIN
 
         WHEN 'parts' THEN
             UPDATE cost_mgmt SET parts = parts + NEW.amount WHERE vehicle_vin = NEW.vehicle_vin;
+
+        WHEN 'others' THEN
+            UPDATE cost_mgmt SET others = others + NEW.amount WHERE vehicle_vin = NEW.vehicle_vin;
 
     END CASE;
 

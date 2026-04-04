@@ -96,15 +96,13 @@ def add_cost_entry(vin: str, entry):
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO cost_history (vehicle_vin, field_name, amount, description, vendor, date)
-        VALUES (%s, %s, %s, %s, %s, %s)
+        INSERT INTO cost_history (vehicle_vin, field_name, amount, description)
+        VALUES (%s, %s, %s, %s)
     """, (
         vin,
         entry.field_name,
         entry.amount,
         entry.description,
-        entry.vendor,
-        entry.date,
     ))
 
     conn.commit()
