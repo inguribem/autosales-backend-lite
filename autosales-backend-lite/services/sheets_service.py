@@ -3,10 +3,42 @@ import requests
 
 SHEETS_API_KEY = os.getenv("GOOGLE_SHEETS_API_KEY")
 APPOINTMENTS_SHEET_ID = os.getenv("APPOINTMENTS_SHEET_ID")
+APPOINTMENTS_RANGE = "Hoja 1!A:Z"  # grab all columns regardless of count
 
-# Google Forms response sheet — column order:
-# A: Timestamp | B: Name | C: Company | D: Email | E: Phone | F: Date | G: Time | H: Notes
-APPOINTMENTS_RANGE = "Hoja 1!A:H"
+# Maps whatever Google Form header text → canonical API field name
+# Covers Spanish and English variations
+HEADER_MAP = {
+    "marca temporal": "timestamp",
+    "timestamp": "timestamp",
+    "nombre": "customerName",
+    "name": "customerName",
+    "empresa": "company",
+    "compañía": "company",
+    "company": "company",
+    "correo electrónico": "email",
+    "correo": "email",
+    "email": "email",
+    "teléfono": "customerPhone",
+    "telefono": "customerPhone",
+    "phone": "customerPhone",
+    "fecha": "date",
+    "date": "date",
+    "hora": "time",
+    "time": "time",
+    "notas": "notes",
+    "nota": "notes",
+    "notes": "notes",
+    "tipo": "appointmentType",
+    "tipo de cita": "appointmentType",
+    "categoría": "appointmentType",
+    "categoria": "appointmentType",
+    "type": "appointmentType",
+}
+
+
+def _canonical(header: str) -> str:
+    key = header.strip().lower()
+    return HEADER_MAP.get(key, key)
 
 
 def get_appointments_from_sheet() -> list[dict]:
@@ -22,30 +54,27 @@ def get_appointments_from_sheet() -> list[dict]:
 
     try:
         response = requests.get(url, timeout=10)
-        response.raise_for_status()
+        if not response.ok:
+            print(f"[sheets] HTTP {response.status_code}: {response.text}")
+            return []
         data = response.json()
     except requests.RequestException as e:
-        print(f"[sheets] Error fetching appointments: {e}")
+        print(f"[sheets] Request failed: {e}")
         return []
 
     rows = data.get("values", [])
     if len(rows) < 2:
         return []
 
+    # Row 1 = headers; map each to a canonical name
+    headers = [_canonical(h) for h in rows[0]]
+    print(f"[sheets] Columns detected: {headers}")
+
     appointments = []
     for i, row in enumerate(rows[1:], start=1):
-        # Pad to 8 columns in case trailing empty cells are omitted by Sheets API
-        padded = row + [""] * (8 - len(row))
-        appointments.append({
-            "id": str(i),
-            "timestamp":      padded[0],
-            "customerName":   padded[1],
-            "company":        padded[2],
-            "email":          padded[3],
-            "customerPhone":  padded[4],
-            "date":           padded[5],
-            "time":           padded[6],
-            "notes":          padded[7],
-        })
+        padded = row + [""] * (len(headers) - len(row))
+        record = dict(zip(headers, padded))
+        record["id"] = str(i)
+        appointments.append(record)
 
     return appointments
