@@ -6,7 +6,7 @@ APPOINTMENTS_SHEET_ID = os.getenv("APPOINTMENTS_SHEET_ID")
 
 # Google Forms response sheet — column order:
 # A: Timestamp | B: Name | C: Company | D: Email | E: Phone | F: Date | G: Time | H: Notes
-APPOINTMENTS_RANGE = "Sheet1!A:H"
+APPOINTMENTS_RANGE = "Hoja 1!A:H"
 
 
 def get_appointments_from_sheet() -> list[dict]:
