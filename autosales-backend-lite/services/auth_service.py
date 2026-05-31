@@ -109,7 +109,11 @@ def request_password_reset(email: str):
 
     frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
     reset_link = f"{frontend_url}/reset-password?token={token}"
-    send_reset_email(email, reset_link)
+
+    if os.getenv("ENV") == "development":
+        print(f"\n[DEV] Password reset link for {email}:\n{reset_link}\n")
+    else:
+        send_reset_email(email, reset_link)
 
 
 # -------------------------
@@ -131,6 +135,7 @@ def reset_user_password(token: str, new_password: str) -> bool:
         return False
 
     user_id, expires_at = row
+    expires_at = expires_at.replace(tzinfo=timezone.utc)
     if datetime.now(timezone.utc) > expires_at:
         cursor.close()
         conn.close()
