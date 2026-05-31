@@ -1,8 +1,17 @@
 from fastapi import FastAPI
+from contextlib import asynccontextmanager
 from routes import vehicle_routes, auctions, service_orders, catalog, reports, slack, cost_routes, auth_routes, dashboard_routes, location_routes
 from fastapi.middleware.cors import CORSMiddleware
+from services.auth_service import ensure_reset_tokens_table
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    ensure_reset_tokens_table()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 # CORS (IMPORTANTE para Streamlit)
 origins = [

@@ -2,7 +2,9 @@ from database import get_connection
 from passlib.context import CryptContext
 from jose import jwt
 import os
-from datetime import datetime, timedelta
+import secrets
+from datetime import datetime, timedelta, timezone
+from services.email_service import send_reset_email
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -50,7 +52,7 @@ def get_user_by_email(email: str):
 # -------------------------
 def create_access_token(data: dict):
     to_encode = data.copy()
-    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
 
     to_encode.update({"exp": expire})
 
@@ -59,6 +61,90 @@ def create_access_token(data: dict):
 
 # -------------------------
 # Authenticate user
+# -------------------------
+RESET_TOKEN_EXPIRE_MINUTES = 30
+
+
+# -------------------------
+# Ensure reset tokens table exists
+# -------------------------
+def ensure_reset_tokens_table():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("""
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+            id SERIAL PRIMARY KEY,
+            user_id INTEGER NOT NULL,
+            token VARCHAR(100) NOT NULL UNIQUE,
+            expires_at TIMESTAMP NOT NULL,
+            created_at TIMESTAMP DEFAULT NOW()
+        )
+    """)
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+
+# -------------------------
+# Forgot password
+# -------------------------
+def request_password_reset(email: str):
+    user = get_user_by_email(email)
+    if not user:
+        return  # Silent — don't reveal whether email exists
+
+    token = secrets.token_urlsafe(32)
+    expires_at = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user["id"],))
+    cursor.execute(
+        "INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES (%s, %s, %s)",
+        (user["id"], token, expires_at)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    frontend_url = os.getenv("FRONTEND_URL", "http://localhost:3000")
+    reset_link = f"{frontend_url}/reset-password?token={token}"
+    send_reset_email(email, reset_link)
+
+
+# -------------------------
+# Reset password
+# -------------------------
+def reset_user_password(token: str, new_password: str) -> bool:
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    cursor.execute(
+        "SELECT user_id, expires_at FROM password_reset_tokens WHERE token = %s",
+        (token,)
+    )
+    row = cursor.fetchone()
+
+    if not row:
+        cursor.close()
+        conn.close()
+        return False
+
+    user_id, expires_at = row
+    if datetime.now(timezone.utc) > expires_at:
+        cursor.close()
+        conn.close()
+        return False
+
+    new_hash = pwd_context.hash(new_password)
+    cursor.execute("UPDATE users SET password_hash = %s WHERE id = %s", (new_hash, user_id))
+    cursor.execute("DELETE FROM password_reset_tokens WHERE token = %s", (token,))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    return True
+
+
 # -------------------------
 def authenticate_user(email: str, password: str):
     print("LOGIN ATTEMPT:", email)
