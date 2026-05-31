@@ -88,10 +88,10 @@ def ensure_reset_tokens_table():
 # -------------------------
 # Forgot password
 # -------------------------
-def request_password_reset(email: str):
+def request_password_reset(email: str) -> bool:
     user = get_user_by_email(email)
     if not user:
-        return  # Silent — don't reveal whether email exists
+        return False
 
     token = secrets.token_urlsafe(32)
     expires_at = datetime.now(timezone.utc) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
@@ -114,6 +114,8 @@ def request_password_reset(email: str):
         print(f"\n[DEV] Password reset link for {email}:\n{reset_link}\n")
     else:
         send_reset_email(email, reset_link)
+
+    return True
 
 
 # -------------------------

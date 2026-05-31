@@ -17,8 +17,10 @@ def login(data: LoginRequest):
 
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest):
-    request_password_reset(data.email)
-    return {"message": "If that email exists, a reset link has been sent."}
+    found = request_password_reset(data.email)
+    if not found:
+        raise HTTPException(status_code=404, detail="No account found with that email address.")
+    return {"message": "A reset link has been sent to your email."}
 
 
 @router.post("/reset-password")
