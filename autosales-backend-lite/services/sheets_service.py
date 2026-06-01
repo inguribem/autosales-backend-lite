@@ -1,5 +1,6 @@
 import os
 import json
+import uuid
 from datetime import datetime
 
 import gspread
@@ -39,6 +40,7 @@ HEADER_MAP = {
     "type": "appointmentType",
     "status": "status",
     "estado": "status",
+    "id": "id",
 }
 
 
@@ -59,13 +61,15 @@ def _raw_headers(sheet: gspread.Worksheet) -> list[str]:
     return sheet.row_values(1)
 
 
-def _build_row(raw_headers: list[str], data: dict, preserve_timestamp: str | None = None) -> list[str]:
+def _build_row(raw_headers: list[str], data: dict, preserve_timestamp: str | None = None, new_id: str | None = None) -> list[str]:
     """Build a sheet row in column order from canonical data dict."""
     row = []
     for h in raw_headers:
         canonical = _canonical(h)
         if canonical == "timestamp":
             row.append(preserve_timestamp or datetime.now().strftime("%d/%m/%Y %H:%M:%S"))
+        elif canonical == "id" and new_id:
+            row.append(new_id)
         else:
             row.append(str(data.get(canonical, "")))
     return row
@@ -102,9 +106,10 @@ def get_appointments_from_sheet() -> list[dict]:
 def append_appointment(data: dict) -> dict:
     sheet = _get_sheet()
     raw_hdrs = _raw_headers(sheet)
-    row = _build_row(raw_hdrs, data)
+    new_id = str(uuid.uuid4())
+    row = _build_row(raw_hdrs, data, new_id=new_id)
     sheet.append_row(row, value_input_option="USER_ENTERED")
-    return {"success": True}
+    return {"success": True, "id": new_id}
 
 
 # ── UPDATE ────────────────────────────────────────────────────────────────────
