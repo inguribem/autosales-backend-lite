@@ -10,3 +10,5 @@ bcrypt==3.2.2
 python-jose
 pydantic[email]
 boto3
+gspread
+google-auth
