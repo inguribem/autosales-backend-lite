@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from routes import vehicle_routes, auctions, service_orders, catalog, reports, slack, cost_routes, auth_routes, dashboard_routes, location_routes, appointment_routes
+from routes import vehicle_routes, auctions, service_orders, catalog, reports, slack, cost_routes, auth_routes, dashboard_routes, location_routes, appointment_routes, asset_routes
 from fastapi.middleware.cors import CORSMiddleware
 from services.auth_service import ensure_reset_tokens_table
 
@@ -39,6 +39,7 @@ app.include_router(auth_routes.router)
 app.include_router(dashboard_routes.router)
 app.include_router(location_routes.router)
 app.include_router(appointment_routes.router)
+app.include_router(asset_routes.router)
 
 @app.get("/")
 def root():
