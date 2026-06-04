@@ -168,21 +168,35 @@ def get_vehicle_history() -> list[dict]:
     inventario = _read_inventario(spreadsheet)   # {vehicleId: details}
     historico  = _read_historico(spreadsheet)    # {vehicleId: [records]}
 
-    # Three-level lookup so IDs match across casing, whitespace, and punctuation
-    # e.g. "VH-001" vs "VH001" vs "vh 001" all resolve to the same inventory entry
+    print(f"[asset_sheets] Inventario IDs: {list(inventario.keys())}")
+    print(f"[asset_sheets] Historico IDs:  {list(historico.keys())}")
+
+    # Four-level lookup to handle casing, whitespace, punctuation, and leading zeros
+    # e.g. "042507" (text) vs "42507" (number), "VH-001" vs "VH001"
     def _alphanum(s: str) -> str:
         return re.sub(r'[^a-z0-9]', '', s.lower())
 
-    inv_norm     = {k.strip().lower(): v  for k, v in inventario.items()}
-    inv_alphanum = {_alphanum(k): v       for k, v in inventario.items()}
+    def _numeric(s: str) -> str:
+        """Strip leading zeros for purely numeric IDs: '042507' → '42507'."""
+        stripped = s.strip()
+        return str(int(stripped)) if stripped.isdigit() else stripped
+
+    inv_norm     = {k.strip().lower(): v for k, v in inventario.items()}
+    inv_alphanum = {_alphanum(k): v      for k, v in inventario.items()}
+    inv_numeric  = {_numeric(k): v       for k, v in inventario.items()}
 
     def _inv(vid: str) -> dict:
-        return (
+        result = (
             inventario.get(vid)
             or inv_norm.get(vid.strip().lower())
             or inv_alphanum.get(_alphanum(vid))
+            or inv_numeric.get(_numeric(vid))
             or {}
         )
+        if not result:
+            print(f"[asset_sheets] No inventory match for vid='{vid}' "
+                  f"(norm='{vid.strip().lower()}', alphanum='{_alphanum(vid)}', numeric='{_numeric(vid)}')")
+        return result
 
     # Union of all vehicle IDs from both tabs
     all_ids = set(inventario.keys()) | set(historico.keys())
