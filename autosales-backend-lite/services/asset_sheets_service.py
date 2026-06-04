@@ -5,118 +5,175 @@ from collections import defaultdict
 import gspread
 from google.oauth2.service_account import Credentials
 
-ASSET_SHEET_ID = os.getenv("ASSET_SHEET_ID")
-ASSET_TAB = "Historico_Movimientos"
+ASSET_SHEET_ID   = os.getenv("ASSET_SHEET_ID")
+INVENTARIO_TAB   = "Inventario_Actual"
+HISTORICO_TAB    = "Historico_Movimientos"
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
-# Maps sheet header text → canonical field name (Spanish + English variants)
-ASSET_HEADER_MAP = {
+# ── Header maps ───────────────────────────────────────────────────────────────
+
+INVENTARIO_MAP = {
+    "id_vehiculo":  "vehicleId",
+    "id vehiculo":  "vehicleId",
     "id_vehiculos": "vehicleId",
     "id vehiculos": "vehicleId",
-    "id_vehiculo": "vehicleId",
-    "id vehiculo": "vehicleId",
-    "vehiculo": "vehicleId",
-    "vehicle": "vehicleId",
-    "vehicle_id": "vehicleId",
-    "vehicle id": "vehicleId",
-    "id": "id",
-    "fecha": "date",
-    "date": "date",
-    "fecha_movimiento": "date",
-    "fecha movimiento": "date",
-    "fecha_hora": "fechaHora",
-    "fecha hora": "fechaHora",
-    "marca temporal": "timestamp",
-    "timestamp": "timestamp",
-    "estado": "status",
-    "status": "status",
-    "ubicacion": "ubicacion",
-    "ubicación": "ubicacion",
-    "location": "ubicacion",
-    "ubicacion_reportada": "ubicacion",
-    "ubicación_reportada": "ubicacion",
-    "ubicacion reportada": "ubicacion",
-    "accion": "action",
-    "acción": "action",
-    "action": "action",
-    "tipo_movimiento": "action",
-    "tipo movimiento": "action",
-    "notas": "notes",
-    "nota": "notes",
-    "notes": "notes",
-    "mensaje_original": "mensaje",
-    "mensaje original": "mensaje",
-    "mensaje": "mensaje",
-    "responsable": "responsable",
-    "assigned_to": "responsable",
-    "assigned to": "responsable",
+    "tag":          "tag",
+    "marca":        "marca",
+    "make":         "marca",
+    "modelo":       "modelo",
+    "model":        "modelo",
+    "color":        "color",
+    "status":       "status",
+    "estado":       "status",
+    "ubicacion":    "ubicacion",
+    "ubicación":    "ubicacion",
+    "location":     "ubicacion",
+}
+
+HISTORICO_MAP = {
+    "id_vehiculos":         "vehicleId",
+    "id vehiculos":         "vehicleId",
+    "id_vehiculo":          "vehicleId",
+    "id vehiculo":          "vehicleId",
+    "vehiculo":             "vehicleId",
+    "vehicle":              "vehicleId",
+    "fecha_hora":           "fechaHora",
+    "fecha hora":           "fechaHora",
+    "fecha":                "date",
+    "date":                 "date",
+    "fecha_movimiento":     "date",
+    "marca temporal":       "timestamp",
+    "timestamp":            "timestamp",
+    "estado":               "status",
+    "status":               "status",
+    "ubicacion_reportada":  "ubicacion",
+    "ubicación_reportada":  "ubicacion",
+    "ubicacion reportada":  "ubicacion",
+    "ubicacion":            "ubicacion",
+    "ubicación":            "ubicacion",
+    "location":             "ubicacion",
+    "mensaje_original":     "mensaje",
+    "mensaje original":     "mensaje",
+    "mensaje":              "mensaje",
+    "responsable":          "responsable",
+    "assigned_to":          "responsable",
+    "notas":                "notes",
+    "notes":                "notes",
 }
 
 
-def _canonical(header: str) -> str:
-    return ASSET_HEADER_MAP.get(header.strip().lower(), header.strip().lower())
+def _ci(h: str, map_: dict) -> str:
+    return map_.get(h.strip().lower(), h.strip().lower())
 
 
-def _get_sheet() -> gspread.Worksheet:
+# ── Auth ──────────────────────────────────────────────────────────────────────
+
+def _get_spreadsheet() -> gspread.Spreadsheet:
     creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
     if not creds_json:
         raise RuntimeError("GOOGLE_CREDENTIALS_JSON env var not set")
     creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=SCOPES)
-    client = gspread.authorize(creds)
-    return client.open_by_key(ASSET_SHEET_ID).worksheet(ASSET_TAB)
+    return gspread.authorize(creds).open_by_key(ASSET_SHEET_ID)
 
+
+# ── Readers ───────────────────────────────────────────────────────────────────
+
+def _read_inventario(spreadsheet: gspread.Spreadsheet) -> dict[str, dict]:
+    """Returns {vehicleId: vehicle_detail_dict} from Inventario_Actual."""
+    try:
+        ws = spreadsheet.worksheet(INVENTARIO_TAB)
+        rows = ws.get_all_values()
+    except Exception as e:
+        print(f"[asset_sheets] Error reading {INVENTARIO_TAB}: {e}")
+        return {}
+
+    if len(rows) < 2:
+        return {}
+
+    headers = [_ci(h, INVENTARIO_MAP) for h in rows[0]]
+    print(f"[asset_sheets] Inventario columns: {headers}")
+
+    result: dict[str, dict] = {}
+    for row in rows[1:]:
+        padded = row + [""] * (len(headers) - len(row))
+        record = dict(zip(headers, padded))
+        vid = record.get("vehicleId")
+        if vid:
+            result[vid] = record
+    return result
+
+
+def _read_historico(spreadsheet: gspread.Spreadsheet) -> dict[str, list[dict]]:
+    """Returns {vehicleId: [records newest-first]} from Historico_Movimientos."""
+    try:
+        ws = spreadsheet.worksheet(HISTORICO_TAB)
+        rows = ws.get_all_values()
+    except Exception as e:
+        print(f"[asset_sheets] Error reading {HISTORICO_TAB}: {e}")
+        return {}
+
+    if len(rows) < 2:
+        return {}
+
+    headers = [_ci(h, HISTORICO_MAP) for h in rows[0]]
+    print(f"[asset_sheets] Historico columns: {headers}")
+
+    groups: dict[str, list[dict]] = defaultdict(list)
+    for i, row in enumerate(rows[1:], start=1):
+        padded = row + [""] * (len(headers) - len(row))
+        record = dict(zip(headers, padded))
+        record["rowId"] = str(i)
+        vid = record.get("vehicleId") or f"row-{i}"
+        groups[vid].append(record)
+
+    # Reverse each group so newest is first
+    return {vid: list(reversed(recs)) for vid, recs in groups.items()}
+
+
+# ── Public API ────────────────────────────────────────────────────────────────
 
 def get_vehicle_history() -> list[dict]:
     """
-    Reads Historico_Movimientos, groups rows by vehicleId,
-    returns one entry per vehicle with latestRecord + full history.
+    Joins Inventario_Actual (vehicle details) with Historico_Movimientos
+    (movement records) on ID_Vehiculo. Returns one entry per vehicle.
     """
     if not ASSET_SHEET_ID:
         print("[asset_sheets] ASSET_SHEET_ID not set")
         return []
 
     try:
-        sheet = _get_sheet()
+        spreadsheet = _get_spreadsheet()
     except Exception as e:
         print(f"[asset_sheets] Auth error: {e}")
         return []
 
-    rows = sheet.get_all_values()
-    if len(rows) < 2:
-        return []
+    inventario = _read_inventario(spreadsheet)   # {vehicleId: details}
+    historico  = _read_historico(spreadsheet)    # {vehicleId: [records]}
 
-    headers = [_canonical(h) for h in rows[0]]
-    print(f"[asset_sheets] Columns: {headers}")
+    # Union of all vehicle IDs from both tabs
+    all_ids = set(inventario.keys()) | set(historico.keys())
 
-    # Build flat record list
-    records: list[dict] = []
-    for i, row in enumerate(rows[1:], start=1):
-        padded = row + [""] * (len(headers) - len(row))
-        record = dict(zip(headers, padded))
-        record["rowId"] = str(i)
-        records.append(record)
-
-    # Group by vehicleId (preserve insertion order)
-    groups: dict[str, list[dict]] = defaultdict(list)
-    for record in records:
-        vid = record.get("vehicleId") or record.get("id_vehiculos") or f"row-{record['rowId']}"
-        groups[vid].append(record)
-
-    # Build result — most recent = last appended row
     result = []
-    for vehicle_id, history in groups.items():
-        latest = history[-1]
+    for vid in all_ids:
+        details = inventario.get(vid, {})
+        history = historico.get(vid, [])
+        latest  = history[0] if history else {}
+
         result.append({
-            "vehicleId": vehicle_id,
+            "vehicleId":    vid,
+            "tag":          details.get("tag", ""),
+            "marca":        details.get("marca", ""),
+            "modelo":       details.get("modelo", ""),
+            "color":        details.get("color", ""),
+            # Status: prefer inventory's current status, fall back to latest movement
+            "latestStatus": details.get("status") or latest.get("status") or "",
+            "latestDate":   latest.get("fechaHora") or latest.get("date") or latest.get("timestamp") or "",
             "latestRecord": latest,
-            "latestDate": latest.get("fechaHora") or latest.get("date") or latest.get("timestamp") or "",
-            "latestStatus": latest.get("status") or "",
             "totalRecords": len(history),
-            "history": list(reversed(history)),   # newest first
+            "history":      history,
         })
 
-    # Sort vehicles by most recent date descending
+    # Sort by most recent movement date descending
     result.sort(key=lambda x: x["latestDate"], reverse=True)
-
     return result
