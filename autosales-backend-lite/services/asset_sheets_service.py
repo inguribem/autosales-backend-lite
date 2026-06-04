@@ -1,4 +1,5 @@
 import os
+import re
 import json
 from collections import defaultdict
 
@@ -167,11 +168,21 @@ def get_vehicle_history() -> list[dict]:
     inventario = _read_inventario(spreadsheet)   # {vehicleId: details}
     historico  = _read_historico(spreadsheet)    # {vehicleId: [records]}
 
-    # Normalised lookup so IDs match even with different casing / whitespace
-    inv_norm = {k.strip().lower(): v for k, v in inventario.items()}
+    # Three-level lookup so IDs match across casing, whitespace, and punctuation
+    # e.g. "VH-001" vs "VH001" vs "vh 001" all resolve to the same inventory entry
+    def _alphanum(s: str) -> str:
+        return re.sub(r'[^a-z0-9]', '', s.lower())
+
+    inv_norm     = {k.strip().lower(): v  for k, v in inventario.items()}
+    inv_alphanum = {_alphanum(k): v       for k, v in inventario.items()}
 
     def _inv(vid: str) -> dict:
-        return inventario.get(vid) or inv_norm.get(vid.strip().lower(), {})
+        return (
+            inventario.get(vid)
+            or inv_norm.get(vid.strip().lower())
+            or inv_alphanum.get(_alphanum(vid))
+            or {}
+        )
 
     # Union of all vehicle IDs from both tabs
     all_ids = set(inventario.keys()) | set(historico.keys())
