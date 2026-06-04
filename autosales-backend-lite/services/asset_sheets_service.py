@@ -167,12 +167,18 @@ def get_vehicle_history() -> list[dict]:
     inventario = _read_inventario(spreadsheet)   # {vehicleId: details}
     historico  = _read_historico(spreadsheet)    # {vehicleId: [records]}
 
+    # Normalised lookup so IDs match even with different casing / whitespace
+    inv_norm = {k.strip().lower(): v for k, v in inventario.items()}
+
+    def _inv(vid: str) -> dict:
+        return inventario.get(vid) or inv_norm.get(vid.strip().lower(), {})
+
     # Union of all vehicle IDs from both tabs
     all_ids = set(inventario.keys()) | set(historico.keys())
 
     result = []
     for vid in all_ids:
-        details = inventario.get(vid, {})
+        details = _inv(vid)
         history = historico.get(vid, [])
         latest  = history[0] if history else {}
 
