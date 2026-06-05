@@ -15,9 +15,10 @@ app = FastAPI(lifespan=lifespan)
 
 # CORS (IMPORTANTE para Streamlit)
 origins = [
+    "https://app.pjautosales.com",
     "https://autosales-frontend-lite.onrender.com",
     "https://autosales-frontend-lite-c68796a0.onrender.com",
-    "http://localhost:3000",  # opcional para local
+    "http://localhost:3000",
 ]
 
 app.add_middleware(
