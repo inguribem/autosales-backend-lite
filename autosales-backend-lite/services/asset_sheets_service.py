@@ -12,6 +12,9 @@ HISTORICO_TAB    = "Historico_Movimientos"
 
 SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
+# Vehicle IDs to silently discard (case-insensitive)
+SKIP_VEHICLE_IDS = {"general", "securityalert"}
+
 # ── Header maps ───────────────────────────────────────────────────────────────
 
 INVENTARIO_MAP = {
@@ -198,11 +201,13 @@ def get_vehicle_history() -> list[dict]:
                   f"(norm='{vid.strip().lower()}', alphanum='{_alphanum(vid)}', numeric='{_numeric(vid)}')")
         return result
 
-    # Union of all vehicle IDs from both tabs
+    # Union of all vehicle IDs from both tabs, excluding synthetic/system IDs
     all_ids = set(inventario.keys()) | set(historico.keys())
 
     result = []
     for vid in all_ids:
+        if vid.strip().lower() in SKIP_VEHICLE_IDS:
+            continue
         details = _inv(vid)
         history = historico.get(vid, [])
         latest  = history[0] if history else {}
