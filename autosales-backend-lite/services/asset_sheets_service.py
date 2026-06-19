@@ -15,18 +15,8 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 # Vehicle IDs to silently discard (case-insensitive)
 SKIP_VEHICLE_IDS = {"general", "securityalert"}
 
-# Reuse a single authorized gspread client to avoid re-authenticating on every request
-_gspread_client: gspread.Client | None = None
-
-
-def _get_client() -> gspread.Client:
-    global _gspread_client
-    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
-    if not creds_json:
-        raise RuntimeError("GOOGLE_CREDENTIALS_JSON env var not set")
-    creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=SCOPES)
-    _gspread_client = gspread.authorize(creds)
-    return _gspread_client
+_cache: dict = {}
+CACHE_TTL = 30  # seconds — limits Sheets API to ~2 calls/min instead of 60+
 
 # ── Header maps ───────────────────────────────────────────────────────────────
 
@@ -103,7 +93,11 @@ def _ci(h: str, map_: dict) -> str:
 # ── Auth ──────────────────────────────────────────────────────────────────────
 
 def _get_spreadsheet() -> gspread.Spreadsheet:
-    return _get_client().open_by_key(ASSET_SHEET_ID)
+    creds_json = os.getenv("GOOGLE_CREDENTIALS_JSON")
+    if not creds_json:
+        raise RuntimeError("GOOGLE_CREDENTIALS_JSON env var not set")
+    creds = Credentials.from_service_account_info(json.loads(creds_json), scopes=SCOPES)
+    return gspread.authorize(creds).open_by_key(ASSET_SHEET_ID)
 
 
 # ── Readers ───────────────────────────────────────────────────────────────────
@@ -234,6 +228,11 @@ def get_vehicle_history() -> list[dict]:
     Joins Inventario_Actual (vehicle details) with Historico_Movimientos
     (movement records) on ID_Vehiculo. Returns one entry per vehicle.
     """
+    import time
+    now = time.time()
+    if _cache.get("ts") and now - _cache["ts"] < CACHE_TTL:
+        return _cache["data"]
+
     if not ASSET_SHEET_ID:
         print("[asset_sheets] ASSET_SHEET_ID not set")
         return []
@@ -242,7 +241,7 @@ def get_vehicle_history() -> list[dict]:
         spreadsheet = _get_spreadsheet()
     except Exception as e:
         print(f"[asset_sheets] Auth error: {e}")
-        return []
+        return _cache.get("data", [])
 
     inventario = _read_inventario(spreadsheet)   # {vehicleId: details}
     historico  = _read_historico(spreadsheet)    # {vehicleId: [records]}
@@ -309,4 +308,8 @@ def get_vehicle_history() -> list[dict]:
 
     # Sort by most recent movement date descending
     result.sort(key=lambda x: x["latestDate"], reverse=True)
+
+    import time
+    _cache["data"] = result
+    _cache["ts"] = time.time()
     return result
