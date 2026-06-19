@@ -2,6 +2,7 @@ import os
 import re
 import json
 from collections import defaultdict
+from datetime import datetime
 
 import gspread
 from google.oauth2.service_account import Credentials
@@ -306,8 +307,15 @@ def get_vehicle_history() -> list[dict]:
             "history":      history,
         })
 
-    # Sort by most recent movement date descending
-    result.sort(key=lambda x: x["latestDate"], reverse=True)
+    def _parse_date(s: str) -> datetime:
+        for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y-%m-%d"):
+            try:
+                return datetime.strptime(s.strip(), fmt)
+            except ValueError:
+                continue
+        return datetime.min
+
+    result.sort(key=lambda x: _parse_date(x["latestDate"]), reverse=True)
 
     import time
     _cache["data"] = result
