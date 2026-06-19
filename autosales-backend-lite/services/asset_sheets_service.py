@@ -153,6 +153,36 @@ def _read_historico(spreadsheet: gspread.Spreadsheet) -> dict[str, list[dict]]:
 
 # ── Public API ────────────────────────────────────────────────────────────────
 
+def get_debug_info() -> dict:
+    """Returns raw sheet metadata to diagnose missing rows."""
+    if not ASSET_SHEET_ID:
+        return {"error": "ASSET_SHEET_ID not set"}
+
+    try:
+        spreadsheet = _get_spreadsheet()
+    except Exception as e:
+        return {"error": f"Auth/connection failed: {e}"}
+
+    result = {}
+
+    for tab_name in [INVENTARIO_TAB, HISTORICO_TAB]:
+        try:
+            ws = spreadsheet.worksheet(tab_name)
+            rows = ws.get_all_values()
+            headers = rows[0] if rows else []
+            total_rows = len(rows) - 1 if len(rows) > 1 else 0
+            last_5 = rows[-5:] if len(rows) > 1 else []
+            result[tab_name] = {
+                "total_data_rows": total_rows,
+                "headers": headers,
+                "last_5_rows": last_5,
+            }
+        except Exception as e:
+            result[tab_name] = {"error": str(e)}
+
+    return result
+
+
 def get_vehicle_history() -> list[dict]:
     """
     Joins Inventario_Actual (vehicle details) with Historico_Movimientos

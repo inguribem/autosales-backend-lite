@@ -1,5 +1,5 @@
 from fastapi import APIRouter, Query
-from services.asset_sheets_service import get_vehicle_history
+from services.asset_sheets_service import get_vehicle_history, get_debug_info
 
 router = APIRouter(prefix="/assets", tags=["assets"])
 
@@ -28,3 +28,8 @@ def list_assets(
         ]
 
     return assets
+
+
+@router.get("/debug")
+def debug_assets():
+    return get_debug_info()
