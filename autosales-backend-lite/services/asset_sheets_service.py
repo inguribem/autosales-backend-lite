@@ -119,8 +119,9 @@ def _read_inventario(spreadsheet: gspread.Spreadsheet) -> dict[str, dict]:
         padded = row + [""] * (len(headers) - len(row))
         record = dict(zip(headers, padded))
         vid = record.get("vehicleId")
-        if vid:
-            result[vid] = record
+        if not vid or vid.strip().lower() in SKIP_VEHICLE_IDS:
+            continue
+        result[vid] = record
     return result
 
 
@@ -145,6 +146,8 @@ def _read_historico(spreadsheet: gspread.Spreadsheet) -> dict[str, list[dict]]:
         record = dict(zip(headers, padded))
         record["rowId"] = str(i)
         vid = record.get("vehicleId") or f"row-{i}"
+        if vid.strip().lower() in SKIP_VEHICLE_IDS:
+            continue
         groups[vid].append(record)
 
     # Reverse each group so newest is first
