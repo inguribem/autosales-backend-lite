@@ -157,31 +157,42 @@ def _read_historico(spreadsheet: gspread.Spreadsheet) -> dict[str, list[dict]]:
 # ── Public API ────────────────────────────────────────────────────────────────
 
 def get_debug_info() -> dict:
-    """Returns raw sheet metadata to diagnose missing rows."""
-    if not ASSET_SHEET_ID:
-        return {"error": "ASSET_SHEET_ID not set"}
+    asset_sheet_id = os.getenv("ASSET_SHEET_ID", "")
+    result: dict = {"asset_sheet_id_set": bool(asset_sheet_id)}
+
+    if not asset_sheet_id:
+        result["error"] = "ASSET_SHEET_ID env var is empty or not set"
+        return result
 
     try:
         spreadsheet = _get_spreadsheet()
+        result["connection"] = "ok"
     except Exception as e:
-        return {"error": f"Auth/connection failed: {e}"}
-
-    result = {}
+        result["connection"] = "failed"
+        result["error"] = str(e)
+        return result
 
     for tab_name in [INVENTARIO_TAB, HISTORICO_TAB]:
+        info: dict = {}
         try:
             ws = spreadsheet.worksheet(tab_name)
+            info["sheet_row_count"] = ws.row_count
+            info["sheet_col_count"] = ws.col_count
+
             rows = ws.get_all_values()
-            headers = rows[0] if rows else []
-            total_rows = len(rows) - 1 if len(rows) > 1 else 0
-            last_5 = rows[-5:] if len(rows) > 1 else []
-            result[tab_name] = {
-                "total_data_rows": total_rows,
-                "headers": headers,
-                "last_5_rows": last_5,
-            }
+            info["rows_returned_by_gspread"] = len(rows)
+
+            if not rows:
+                info["headers"] = []
+                info["last_5_rows"] = []
+            else:
+                info["headers"] = rows[0]
+                info["last_5_rows"] = rows[-5:]
+
         except Exception as e:
-            result[tab_name] = {"error": str(e)}
+            info["error"] = str(e)
+
+        result[tab_name] = info
 
     return result
 
