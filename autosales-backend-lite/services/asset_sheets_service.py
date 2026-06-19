@@ -185,9 +185,28 @@ def get_debug_info() -> dict:
             if not rows:
                 info["headers"] = []
                 info["last_5_rows"] = []
+                info["skipped_rows"] = []
+                info["unique_vehicle_ids"] = []
             else:
+                headers_mapped = [_ci(h, HISTORICO_MAP) for h in rows[0]]
                 info["headers"] = rows[0]
                 info["last_5_rows"] = rows[-5:]
+
+                skipped = []
+                vehicle_ids = []
+                vid_col = (
+                    headers_mapped.index("vehicleId")
+                    if "vehicleId" in headers_mapped else None
+                )
+                for i, row in enumerate(rows[1:], start=1):
+                    vid = row[vid_col].strip() if vid_col is not None and vid_col < len(row) else ""
+                    if vid.lower() in SKIP_VEHICLE_IDS:
+                        skipped.append({"row": i + 1, "vehicleId": vid})
+                    elif vid:
+                        vehicle_ids.append(vid)
+
+                info["skipped_rows"] = skipped
+                info["unique_vehicle_ids"] = sorted(set(vehicle_ids))
 
         except Exception as e:
             info["error"] = str(e)
