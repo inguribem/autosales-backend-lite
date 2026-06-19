@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import time
 from collections import defaultdict
 
 import gspread
@@ -14,6 +15,9 @@ SCOPES = ["https://www.googleapis.com/auth/spreadsheets"]
 
 # Vehicle IDs to silently discard (case-insensitive)
 SKIP_VEHICLE_IDS = {"general", "securityalert"}
+
+_cache: dict = {}
+CACHE_TTL = 60  # seconds
 
 # ── Header maps ───────────────────────────────────────────────────────────────
 
@@ -193,20 +197,24 @@ def get_debug_info() -> dict:
                 info["last_5_rows"] = rows[-5:]
 
                 skipped = []
-                vehicle_ids = []
+                all_rows_index = []
                 vid_col = (
                     headers_mapped.index("vehicleId")
                     if "vehicleId" in headers_mapped else None
                 )
                 for i, row in enumerate(rows[1:], start=1):
                     vid = row[vid_col].strip() if vid_col is not None and vid_col < len(row) else ""
+                    ts_col = next(
+                        (j for j, h in enumerate(headers_mapped) if h in ("fechaHora", "date", "timestamp")),
+                        None
+                    )
+                    ts = row[ts_col].strip() if ts_col is not None and ts_col < len(row) else ""
                     if vid.lower() in SKIP_VEHICLE_IDS:
-                        skipped.append({"row": i + 1, "vehicleId": vid})
-                    elif vid:
-                        vehicle_ids.append(vid)
+                        skipped.append({"row": i + 1, "vehicleId": vid, "ts": ts})
+                    all_rows_index.append({"row": i + 1, "vehicleId": vid, "ts": ts})
 
                 info["skipped_rows"] = skipped
-                info["unique_vehicle_ids"] = sorted(set(vehicle_ids))
+                info["all_rows"] = all_rows_index
 
         except Exception as e:
             info["error"] = str(e)
@@ -221,6 +229,10 @@ def get_vehicle_history() -> list[dict]:
     Joins Inventario_Actual (vehicle details) with Historico_Movimientos
     (movement records) on ID_Vehiculo. Returns one entry per vehicle.
     """
+    now = time.time()
+    if _cache.get("ts") and now - _cache["ts"] < CACHE_TTL:
+        return _cache["data"]
+
     if not ASSET_SHEET_ID:
         print("[asset_sheets] ASSET_SHEET_ID not set")
         return []
@@ -229,7 +241,7 @@ def get_vehicle_history() -> list[dict]:
         spreadsheet = _get_spreadsheet()
     except Exception as e:
         print(f"[asset_sheets] Auth error: {e}")
-        return []
+        return _cache.get("data", [])
 
     inventario = _read_inventario(spreadsheet)   # {vehicleId: details}
     historico  = _read_historico(spreadsheet)    # {vehicleId: [records]}
@@ -296,4 +308,7 @@ def get_vehicle_history() -> list[dict]:
 
     # Sort by most recent movement date descending
     result.sort(key=lambda x: x["latestDate"], reverse=True)
+
+    _cache["data"] = result
+    _cache["ts"] = time.time()
     return result
