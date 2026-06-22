@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from contextlib import asynccontextmanager
-from routes import vehicle_routes, auctions, service_orders, catalog, reports, slack, cost_routes, auth_routes, dashboard_routes, location_routes, appointment_routes, asset_routes
+from routes import vehicle_routes, auctions, service_orders, catalog, reports, slack, cost_routes, auth_routes, dashboard_routes, location_routes, appointment_routes, asset_routes, invoice_routes
 from fastapi.middleware.cors import CORSMiddleware
 from services.auth_service import ensure_reset_tokens_table
 
@@ -19,6 +19,7 @@ origins = [
     "https://autosales-frontend-lite.onrender.com",
     "https://autosales-frontend-lite-c68796a0.onrender.com",
     "http://localhost:3000",
+    "http://localhost:5173",
 ]
 
 app.add_middleware(
@@ -41,6 +42,8 @@ app.include_router(dashboard_routes.router)
 app.include_router(location_routes.router)
 app.include_router(appointment_routes.router)
 app.include_router(asset_routes.router)
+app.include_router(invoice_routes.router)
+app.include_router(invoice_routes.router_queue)
 
 @app.get("/")
 def root():
