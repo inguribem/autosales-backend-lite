@@ -15,7 +15,7 @@ def get_all_invoices(status: str = None) -> list[dict]:
             query += " WHERE status = %s"
             params.append(status)
 
-        query += " ORDER BY invoice_date ASC, created_at ASC"
+        query += " ORDER BY id ASC"
 
         cursor.execute(query, params)
         columns = [desc[0] for desc in cursor.description]
@@ -44,7 +44,7 @@ def get_all_invoice_queue(status: str = None) -> list[dict]:
             query += " WHERE status = %s"
             params.append(status)
 
-        query += " ORDER BY created_at DESC"
+        query += " ORDER BY id DESC"
 
         cursor.execute(query, params)
         columns = [desc[0] for desc in cursor.description]
