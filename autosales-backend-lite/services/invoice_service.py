@@ -70,7 +70,8 @@ def delete_invoice(invoice_id: int) -> Optional[dict]:
         conn = get_connection()
         cursor = conn.cursor()
         cursor.execute(
-            "UPDATE invoices SET deleted_at = NOW() WHERE id = %s AND deleted_at IS NULL RETURNING *",
+            "UPDATE invoices SET deleted_at = (NOW() AT TIME ZONE 'America/New_York') "
+            "WHERE id = %s AND deleted_at IS NULL RETURNING *",
             [invoice_id],
         )
         row = cursor.fetchone()
