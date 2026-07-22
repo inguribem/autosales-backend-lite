@@ -9,11 +9,11 @@ def get_all_invoices(status: str = None) -> list[dict]:
         conn = get_connection()
         cursor = conn.cursor()
 
-        query = "SELECT * FROM invoices"
+        query = "SELECT * FROM invoices WHERE deleted_at IS NULL"
         params = []
 
         if status:
-            query += " WHERE status = %s"
+            query += " AND status = %s"
             params.append(status)
 
         query += " ORDER BY id ASC"
@@ -46,6 +46,32 @@ def update_invoice(invoice_id: int, fields: dict) -> Optional[dict]:
         cursor.execute(
             f"UPDATE invoices SET {set_clause} WHERE id = %s RETURNING *",
             values,
+        )
+        row = cursor.fetchone()
+        conn.commit()
+        if row is None:
+            return None
+        columns = [desc[0] for desc in cursor.description]
+        cursor.close()
+        return dict(zip(columns, row))
+    except Exception:
+        traceback.print_exc()
+        if conn:
+            conn.rollback()
+        return None
+    finally:
+        if conn:
+            conn.close()
+
+
+def delete_invoice(invoice_id: int) -> Optional[dict]:
+    conn = None
+    try:
+        conn = get_connection()
+        cursor = conn.cursor()
+        cursor.execute(
+            "UPDATE invoices SET deleted_at = NOW() WHERE id = %s AND deleted_at IS NULL RETURNING *",
+            [invoice_id],
         )
         row = cursor.fetchone()
         conn.commit()

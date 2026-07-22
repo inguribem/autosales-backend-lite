@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Query, HTTPException
 from pydantic import BaseModel
 from typing import Optional
-from services.invoice_service import get_all_invoices, get_all_invoice_queue, update_invoice
+from services.invoice_service import get_all_invoices, get_all_invoice_queue, update_invoice, delete_invoice
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 router_queue = APIRouter(prefix="/invoice_queue", tags=["invoice_queue"])
@@ -22,6 +22,14 @@ def list_invoices(status: str = Query(None)):
 @router.patch("/{invoice_id}")
 def patch_invoice(invoice_id: int, body: InvoiceUpdate):
     result = update_invoice(invoice_id, body.model_dump(exclude_none=True))
+    if result is None:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    return result
+
+
+@router.delete("/{invoice_id}")
+def delete_invoice_route(invoice_id: int):
+    result = delete_invoice(invoice_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
     return result
