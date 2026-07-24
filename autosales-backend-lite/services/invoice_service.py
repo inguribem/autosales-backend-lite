@@ -33,7 +33,7 @@ def get_all_invoices(status: str = None) -> list[dict]:
 
 
 def update_invoice(invoice_id: int, fields: dict) -> Optional[dict]:
-    ALLOWED = {"vin_partial", "vehicle_make", "vehicle_model", "status"}
+    ALLOWED = {"vin_partial", "vehicle_make", "vehicle_model", "status", "invoice_total"}
     updates = {k: v for k, v in fields.items() if k in ALLOWED and v is not None}
     if not updates:
         return None

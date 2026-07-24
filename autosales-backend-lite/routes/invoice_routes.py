@@ -12,6 +12,7 @@ class InvoiceUpdate(BaseModel):
     vehicle_make: Optional[str] = None
     vehicle_model: Optional[str] = None
     status: Optional[str] = None
+    invoice_total: Optional[float] = None
 
 
 @router.get("")
