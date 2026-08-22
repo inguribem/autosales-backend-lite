@@ -1,6 +1,7 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from database import get_connection
+from services.auth_service import get_current_user
 
 router = APIRouter()
 
@@ -42,7 +43,7 @@ def update_order_total(order_id, cursor):
 # ENDPOINTS
 # -------------------------
 @router.post("/service-orders")
-def create_service_order(order: ServiceOrderCreate):
+def create_service_order(order: ServiceOrderCreate, _user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -121,7 +122,7 @@ def get_catalog_items():
 
 
 @router.post("/order-details")
-def add_order_detail(item: OrderDetailCreate):
+def add_order_detail(item: OrderDetailCreate, _user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -187,7 +188,7 @@ def get_order_details(order_id: int):
 # ✅ FIXED: UPDATE ORDER (JSON)
 # -------------------------
 @router.put("/service-orders/{order_id}")
-def update_service_order(order_id: int, payload: ServiceOrderUpdate):
+def update_service_order(order_id: int, payload: ServiceOrderUpdate, _user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -204,7 +205,7 @@ def update_service_order(order_id: int, payload: ServiceOrderUpdate):
 
 
 @router.delete("/service-orders/{order_id}")
-def delete_service_order(order_id: int):
+def delete_service_order(order_id: int, _user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -222,7 +223,7 @@ def delete_service_order(order_id: int):
 # ✅ FIXED: UPDATE DETAIL (JSON + TOTAL)
 # -------------------------
 @router.put("/order-details/{detail_id}")
-def update_order_detail(detail_id: int, payload: OrderDetailUpdate):
+def update_order_detail(detail_id: int, payload: OrderDetailUpdate, _user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -264,7 +265,7 @@ def update_order_detail(detail_id: int, payload: OrderDetailUpdate):
 # DELETE DETAIL + TOTAL UPDATE
 # -------------------------
 @router.delete("/order-details/{detail_id}")
-def delete_order_detail(detail_id: int):
+def delete_order_detail(detail_id: int, _user: dict = Depends(get_current_user)):
     conn = get_connection()
     cursor = conn.cursor()
 

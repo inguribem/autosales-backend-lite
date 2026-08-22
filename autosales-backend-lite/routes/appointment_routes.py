@@ -1,10 +1,11 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
 from services.sheets_service import (
     get_appointments_from_sheet,
     append_appointment,
     update_appointment,
     delete_appointment,
 )
+from services.auth_service import get_current_user
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
 
@@ -25,7 +26,7 @@ def list_appointments(search: str = Query(None)):
 
 
 @router.post("")
-def create_appointment(data: dict):
+def create_appointment(data: dict, _user: dict = Depends(get_current_user)):
     try:
         return append_appointment(data)
     except Exception as e:
@@ -33,7 +34,7 @@ def create_appointment(data: dict):
 
 
 @router.patch("/{appointment_id}")
-def edit_appointment(appointment_id: int, data: dict):
+def edit_appointment(appointment_id: int, data: dict, _user: dict = Depends(get_current_user)):
     try:
         return update_appointment(appointment_id, data)
     except Exception as e:
@@ -41,7 +42,7 @@ def edit_appointment(appointment_id: int, data: dict):
 
 
 @router.delete("/{appointment_id}")
-def remove_appointment(appointment_id: int):
+def remove_appointment(appointment_id: int, _user: dict = Depends(get_current_user)):
     try:
         return delete_appointment(appointment_id)
     except Exception as e:

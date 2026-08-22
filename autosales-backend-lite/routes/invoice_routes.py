@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional
 from services.invoice_service import get_all_invoices, get_all_invoice_queue, update_invoice, delete_invoice
+from services.auth_service import get_current_user
 
 router = APIRouter(prefix="/invoices", tags=["invoices"])
 router_queue = APIRouter(prefix="/invoice_queue", tags=["invoice_queue"])
@@ -21,7 +22,7 @@ def list_invoices(status: str = Query(None)):
 
 
 @router.patch("/{invoice_id}")
-def patch_invoice(invoice_id: int, body: InvoiceUpdate):
+def patch_invoice(invoice_id: int, body: InvoiceUpdate, _user: dict = Depends(get_current_user)):
     result = update_invoice(invoice_id, body.model_dump(exclude_none=True))
     if result is None:
         raise HTTPException(status_code=404, detail="Invoice not found")
@@ -29,7 +30,7 @@ def patch_invoice(invoice_id: int, body: InvoiceUpdate):
 
 
 @router.delete("/{invoice_id}")
-def delete_invoice_route(invoice_id: int):
+def delete_invoice_route(invoice_id: int, _user: dict = Depends(get_current_user)):
     result = delete_invoice(invoice_id)
     if result is None:
         raise HTTPException(status_code=404, detail="Invoice not found")

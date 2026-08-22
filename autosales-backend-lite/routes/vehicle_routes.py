@@ -1,7 +1,8 @@
-from fastapi import APIRouter, Query, HTTPException
+from fastapi import APIRouter, Query, HTTPException, Depends
 from database import get_connection
 from services.vin_service import decode_vin
 from services.cost_service import add_cost_entry
+from services.auth_service import get_current_user
 from services.vehicle_service import (
     create_vehicle,
     get_inventory,
@@ -42,7 +43,7 @@ def get_vehicle(id: str):
 # CREATE VEHICLE
 # -------------------------
 @router.post("")
-def create(vehicle: dict):
+def create(vehicle: dict, _user: dict = Depends(get_current_user)):
     return create_vehicle(vehicle)
 
 
@@ -50,7 +51,7 @@ def create(vehicle: dict):
 # UPDATE VEHICLE
 # -------------------------
 @router.patch("/{id}")
-def update(id: str, vehicle: dict):
+def update(id: str, vehicle: dict, _user: dict = Depends(get_current_user)):
     return update_vehicle(id, vehicle)
 
 
@@ -58,7 +59,7 @@ def update(id: str, vehicle: dict):
 # DELETE VEHICLE
 # -------------------------
 @router.delete("/{id}")
-def delete(id: str):
+def delete(id: str, _user: dict = Depends(get_current_user)):
     return delete_vehicle(id)
 
 @router.get("/vehicles")

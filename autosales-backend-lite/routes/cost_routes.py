@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, Depends
 from typing import List
 
 from schemas.cost_schema import (
@@ -8,6 +8,7 @@ from schemas.cost_schema import (
 )
 
 from services import cost_service
+from services.auth_service import get_current_user
 
 router = APIRouter(prefix="/costs", tags=["Costs"])
 
@@ -26,7 +27,7 @@ def get_cost_types():
 # ADD COST (ledger)
 # -------------------------
 @router.post("/{vin}/add")
-def add_cost(vin: str, entry: CostEntryCreate):
+def add_cost(vin: str, entry: CostEntryCreate, _user: dict = Depends(get_current_user)):
     return cost_service.add_cost_entry(vin, entry)
 
 
