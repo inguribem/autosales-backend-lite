@@ -1,14 +1,11 @@
 from fastapi import APIRouter, Query, HTTPException, Depends
-from database import get_connection
 from services.vin_service import decode_vin
-from services.cost_service import add_cost_entry
 from services.auth_service import get_current_user
 from services.vehicle_service import (
     create_vehicle,
     get_inventory,
     update_vehicle,
     delete_vehicle,
-    get_vehicle_by_id
 )
 
 router = APIRouter(prefix="/vehicles", tags=["vehicles"])
@@ -62,85 +59,11 @@ def update(id: str, vehicle: dict, _user: dict = Depends(get_current_user)):
 def delete(id: str, _user: dict = Depends(get_current_user)):
     return delete_vehicle(id)
 
-@router.get("/vehicles")
-def get_vehicles():
-    return get_inventory()
-    
-
-@router.get("/vehicles/{vehicle_id}")
-def get_vehicle(vehicle_id: str):
-    vehicle = get_vehicle_by_id(vehicle_id)
-
-    if not vehicle:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-
-    return vehicle
-
-
-# -------------------------
-# GET VEHICLE DETAILS BY VIN
-# -------------------------
-@router.get("/vehicles/{vin}")
-def get_vehicle(vin: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("""
-        SELECT id, vin, year, make, model, trim, price_purchase, miles,
-               dealer_name, city, state, status, stock_number
-        FROM vehicles
-        WHERE vin=%s
-    """, (vin,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not row:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-
-    columns = ["id", "vin", "year", "make", "model", "trim", "purchasePrice",
-               "mileage", "dealer_name", "city", "state", "status", "stockNumber"]
-    return dict(zip(columns, row))
-
-
-# -------------------------
-# GET VEHICLE LOCATION BY VIN
-# -------------------------
-@router.get("/locations/{vin}")
-def get_vehicle_location(vin: str):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT city, state, dealer_name FROM vehicles WHERE vin=%s", (vin,))
-    row = cursor.fetchone()
-    cursor.close()
-    conn.close()
-
-    if not row:
-        raise HTTPException(status_code=404, detail="Vehicle not found")
-
-    columns = ["city", "state", "dealer_name"]
-    return dict(zip(columns, row))
-
-
-# -------------------------
-# GET COSTS BY VIN
-# -------------------------
-@router.get("/costs")
-def get_costs(vin: str = Query(..., description="VIN del vehículo")):
-    conn = get_connection()
-    cursor = conn.cursor()
-    cursor.execute("SELECT field_name, amount, description FROM costs WHERE vehicle_vin=%s", (vin,))
-    rows = cursor.fetchall()
-    cursor.close()
-    conn.close()
-
-    # Siempre devolvemos un array, incluso si está vacío
-    return [dict(zip(["field_name", "amount", "description"], row)) for row in rows]
-
 
 # -------------------------
 # DECODE VIN
 # -------------------------
-@router.get("/vehicles/decode/{vin}")
+@router.get("/decode/{vin}")
 def decode_vehicle_vin(vin: str):
     try:
         decoded = decode_vin(vin)
